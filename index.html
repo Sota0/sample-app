@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ルーレットアプリ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎰 ルーレットアプリ</h1>
+            <div class="header-controls">
+                <button id="darkModeToggle" class="icon-btn" aria-label="ダークモード切替">🌙</button>
+            </div>
+        </header>
+
+        <main>
+            <!-- Mode Selection -->
+            <section class="mode-section">
+                <div class="mode-toggle">
+                    <button id="singleMode" class="mode-btn active">単独モード</button>
+                    <button id="pairingMode" class="mode-btn">ペアリングモード</button>
+                </div>
+            </section>
+
+            <!-- Lists Section -->
+            <section class="lists-section">
+                <div class="list-container">
+                    <div class="list-panel">
+                        <div class="list-header">
+                            <h2>参加者</h2>
+                            <div class="list-controls">
+                                <button id="addParticipant" class="btn-sm">追加</button>
+                                <button id="resetParticipants" class="btn-sm btn-secondary">リセット</button>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <input type="text" id="participantInput" placeholder="参加者名を入力">
+                        </div>
+                        <ul id="participantList" class="item-list"></ul>
+                    </div>
+
+                    <div class="list-panel" id="penaltyPanel">
+                        <div class="list-header">
+                            <h2>ペナルティ</h2>
+                            <div class="list-controls">
+                                <button id="addPenalty" class="btn-sm">追加</button>
+                                <button id="resetPenalties" class="btn-sm btn-secondary">リセット</button>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <input type="text" id="penaltyInput" placeholder="ペナルティを入力">
+                        </div>
+                        <ul id="penaltyList" class="item-list"></ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Roulette Section -->
+            <section class="roulette-section">
+                <div class="canvas-container">
+                    <canvas id="rouletteCanvas" width="400" height="400"></canvas>
+                    <div id="result" class="result-display"></div>
+                </div>
+                <button id="spinBtn" class="spin-btn">スピン!</button>
+            </section>
+
+            <!-- Options Section -->
+            <section class="options-section">
+                <div class="option-item">
+                    <label>
+                        <input type="checkbox" id="noRepeatMode">
+                        <span>選択後に削除（リピートなし）</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- History Section -->
+            <section class="history-section">
+                <div class="history-header">
+                    <h2>履歴</h2>
+                    <div class="history-controls">
+                        <button id="undoBtn" class="btn-sm">元に戻す</button>
+                        <button id="clearHistoryBtn" class="btn-sm btn-secondary">クリア</button>
+                    </div>
+                </div>
+                <ul id="historyList" class="history-list"></ul>
+            </section>
+        </main>
+    </div>
+
+    <!-- Confetti Container -->
+    <canvas id="confettiCanvas"></canvas>
+
+    <script src="app.js"></script>
+</body>
+</html>
