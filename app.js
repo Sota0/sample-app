@@ -173,7 +173,7 @@ function setMode(mode) {
     elements.pairingModeBtn.classList.toggle('active', mode === 'pairing');
     
     // Show/hide penalty panel based on mode
-    elements.penaltyPanel.style.display = mode === 'pairing' ? 'block' : 'block';
+    elements.penaltyPanel.style.display = mode === 'pairing' ? 'block' : 'none';
     
     saveState();
     drawWheel();
@@ -239,6 +239,7 @@ function renderAll() {
     elements.darkModeToggle.textContent = state.darkMode ? '☀️' : '🌙';
     elements.singleModeBtn.classList.toggle('active', state.currentMode === 'single');
     elements.pairingModeBtn.classList.toggle('active', state.currentMode === 'pairing');
+    elements.penaltyPanel.style.display = state.currentMode === 'pairing' ? 'block' : 'none';
 }
 
 // Draw Roulette Wheel
@@ -396,9 +397,12 @@ function onSpinComplete() {
     let resultText;
     let participant = items[winnerIndex];
     
+    let penalty = null;
+    let penaltyIndex = -1;
+    
     if (state.currentMode === 'pairing') {
-        const penaltyIndex = Math.floor(Math.random() * state.penalties.length);
-        const penalty = state.penalties[penaltyIndex];
+        penaltyIndex = Math.floor(Math.random() * state.penalties.length);
+        penalty = state.penalties[penaltyIndex];
         resultText = `${participant} が ${penalty} をやる`;
         
         // Remove items if no-repeat mode
@@ -427,7 +431,7 @@ function onSpinComplete() {
         time: timeStr,
         participant: participant,
         participantIndex: winnerIndex,
-        penalty: state.currentMode === 'pairing' ? state.penalties[Math.floor(Math.random() * state.penalties.length)] : null,
+        penalty: penalty,
         mode: state.currentMode
     });
 
