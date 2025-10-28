@@ -401,14 +401,23 @@ function onSpinComplete() {
     let penaltyIndex = -1;
     
     if (state.currentMode === 'pairing') {
-        penaltyIndex = Math.floor(Math.random() * state.penalties.length);
-        penalty = state.penalties[penaltyIndex];
-        resultText = `${participant} が ${penalty} をやる`;
-        
-        // Remove items if no-repeat mode
-        if (state.noRepeatMode) {
-            state.participants.splice(winnerIndex, 1);
-            state.penalties.splice(penaltyIndex, 1);
+        if (state.penalties.length > 0) {
+            penaltyIndex = Math.floor(Math.random() * state.penalties.length);
+            penalty = state.penalties[penaltyIndex];
+            resultText = `${participant} が ${penalty} をやる`;
+            
+            // Remove items if no-repeat mode
+            if (state.noRepeatMode) {
+                state.participants.splice(winnerIndex, 1);
+                state.penalties.splice(penaltyIndex, 1);
+            }
+        } else {
+            resultText = participant;
+            
+            // Remove participant if no-repeat mode
+            if (state.noRepeatMode) {
+                state.participants.splice(winnerIndex, 1);
+            }
         }
     } else {
         resultText = participant;
