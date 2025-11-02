@@ -93,6 +93,67 @@
     <!-- Confetti Container -->
     <canvas id="confettiCanvas"></canvas>
 
+    <!-- Admin Panel (Hidden) -->
+    <div id="adminPanel" class="admin-modal" role="dialog" aria-labelledby="adminTitle" aria-hidden="true">
+        <div class="admin-overlay"></div>
+        <div class="admin-content">
+            <h2 id="adminTitle">🔐 管理者パネル</h2>
+            
+            <!-- Passcode Entry -->
+            <div id="passcodeSection" class="admin-section">
+                <label for="passcodeInput">パスコードを入力:</label>
+                <input type="password" id="passcodeInput" placeholder="4桁のパスコード" maxlength="4" pattern="[0-9]{4}">
+                <button id="passcodeSubmit" class="btn-sm">確認</button>
+                <p id="passcodeError" class="error-message"></p>
+            </div>
+
+            <!-- Admin Controls (Hidden until passcode verified) -->
+            <div id="adminControls" class="admin-section" style="display: none;">
+                <div class="admin-field">
+                    <label for="nextWinner">次の勝者:</label>
+                    <input type="text" id="nextWinner" list="participantSuggestions" placeholder="参加者名（部分一致可）" autocomplete="off">
+                    <datalist id="participantSuggestions"></datalist>
+                </div>
+
+                <div class="admin-field">
+                    <label for="applyCount">適用回数:</label>
+                    <input type="number" id="applyCount" value="1" min="1" max="99">
+                </div>
+
+                <div class="admin-field">
+                    <label for="animationStyle">アニメーション:</label>
+                    <select id="animationStyle">
+                        <option value="wheel">ホイール</option>
+                        <option value="tvscroll">TVスクロール</option>
+                    </select>
+                </div>
+
+                <div class="admin-field">
+                    <label>
+                        <input type="checkbox" id="showDecoyOdds">
+                        <span>デコイ確率表示（見た目のみ）</span>
+                    </label>
+                </div>
+
+                <div class="admin-buttons">
+                    <button id="setRig" class="btn-sm">設定</button>
+                    <button id="clearRig" class="btn-sm btn-secondary">クリア</button>
+                    <button id="closeAdmin" class="btn-sm btn-secondary">閉じる</button>
+                </div>
+
+                <div id="rigStatus" class="rig-status"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TV Scroll Container -->
+    <div id="tvScrollContainer" class="tv-scroll-container" style="display: none;">
+        <div class="tv-scroll-window">
+            <div id="tvScrollList" class="tv-scroll-list"></div>
+            <div class="tv-scroll-highlight"></div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
