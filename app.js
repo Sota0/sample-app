@@ -734,22 +734,28 @@ function spinWithWheel() {
         
         // The winner calculation is: Math.floor(((2 * Math.PI - normalizedRotation) + Math.PI / 2) / sliceAngle) % items.length
         // We need to find normalizedRotation such that this formula gives us targetIndex
-        // Solving: targetIndex = Math.floor(((2 * Math.PI - normalizedRotation) + Math.PI / 2) / sliceAngle) % items.length
-        // We want normalizedRotation in the range that gives targetIndex
-        
         const centerOfSlice = targetIndex * sliceAngle + sliceAngle / 2;
         const desiredNormalizedRotation = (2 * Math.PI + Math.PI / 2 - centerOfSlice) % (2 * Math.PI);
         
         // Add random offset within the slice
         const randomOffset = (Math.random() - 0.5) * sliceAngle * 0.7;
-        const finalNormalizedRotation = (desiredNormalizedRotation + randomOffset + 2 * Math.PI) % (2 * Math.PI);
+        let finalNormalizedRotation = desiredNormalizedRotation + randomOffset;
+        
+        // Ensure positive angle
+        while (finalNormalizedRotation < 0) finalNormalizedRotation += 2 * Math.PI;
+        while (finalNormalizedRotation >= 2 * Math.PI) finalNormalizedRotation -= 2 * Math.PI;
         
         // Calculate total rotation including spins
         const spins = 5 + Math.random() * 3;
-        const currentNormalized = rotation % (2 * Math.PI);
-        const delta = (finalNormalizedRotation - currentNormalized + 2 * Math.PI) % (2 * Math.PI);
+        let currentNormalized = rotation % (2 * Math.PI);
+        if (currentNormalized < 0) currentNormalized += 2 * Math.PI;
+        
+        let delta = finalNormalizedRotation - currentNormalized;
+        if (delta < 0) delta += 2 * Math.PI;
         
         targetRotation = rotation + spins * 2 * Math.PI + delta;
+        
+        console.log(`Rigging for ${targetWinner} (index ${targetIndex}): targetRotation=${targetRotation}, finalNormalized=${finalNormalizedRotation}`);
     } else {
         // Fair spin
         const spins = 5 + Math.random() * 5;
@@ -874,13 +880,32 @@ function onSpinComplete() {
         ? state.participants 
         : state.participants;
     
-    const normalizedRotation = rotation % (2 * Math.PI);
-    const sliceAngle = (2 * Math.PI) / items.length;
+    let participant;
+    let winnerIndex;
     
-    // The pointer is at the top, so we need to find which slice is at the top
-    // Adjust for rotation direction
-    let winnerIndex = Math.floor(((2 * Math.PI - normalizedRotation) + Math.PI / 2) / sliceAngle) % items.length;
-    const participant = items[winnerIndex];
+    // Check if rigged
+    if (rigState.applyCount > 0 && rigState.nextWinner) {
+        const targetWinner = findParticipantMatch(rigState.nextWinner);
+        if (targetWinner) {
+            participant = targetWinner;
+            winnerIndex = items.indexOf(targetWinner);
+            console.log(`Rigged result: ${participant} (index ${winnerIndex})`);
+        } else {
+            // Fallback to normal if match not found
+            const normalizedRotation = rotation % (2 * Math.PI);
+            const sliceAngle = (2 * Math.PI) / items.length;
+            winnerIndex = Math.floor(((2 * Math.PI - normalizedRotation) + Math.PI / 2) / sliceAngle) % items.length;
+            participant = items[winnerIndex];
+        }
+    } else {
+        // Normal (fair) winner calculation
+        const normalizedRotation = rotation % (2 * Math.PI);
+        const sliceAngle = (2 * Math.PI) / items.length;
+        winnerIndex = Math.floor(((2 * Math.PI - normalizedRotation) + Math.PI / 2) / sliceAngle) % items.length;
+        participant = items[winnerIndex];
+    }
+    
+    console.log(`Winner calculation: rotation=${rotation}, winnerIndex=${winnerIndex}, participant=${participant}`);
     
     // Process the result
     processSpinResult(participant, winnerIndex);
