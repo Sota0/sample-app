@@ -9,6 +9,22 @@ const state = {
     isSpinning: false
 };
 
+// Rig State (stored separately in localStorage)
+const rigState = {
+    nextWinner: '',
+    applyCount: 0,
+    animationStyle: 'wheel', // 'wheel' or 'tvscroll'
+    showDecoyOdds: false
+};
+
+// Admin Panel State
+const ADMIN_PASSCODE = '1029';
+let isAdminAuthenticated = false;
+let konamiSequence = [];
+const KONAMI_CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+let longPressTimer = null;
+let spinLongPressTimer = null;
+
 // Default data in Japanese
 const defaultParticipants = ['田中', '佐藤', '鈴木', '高橋', '伊藤', '渡辺', '山本', '中村'];
 const defaultPenalties = ['腕立て伏せ10回', 'スクワット15回', '一発芸', '物まね', '早口言葉', 'ダンス30秒', '歌を歌う', 'なぞなぞを出す'];
@@ -36,7 +52,23 @@ const elements = {
     pairingModeBtn: null,
     noRepeatCheckbox: null,
     darkModeToggle: null,
-    penaltyPanel: null
+    penaltyPanel: null,
+    // Admin elements
+    adminPanel: null,
+    passcodeSection: null,
+    passcodeInput: null,
+    passcodeSubmit: null,
+    passcodeError: null,
+    adminControls: null,
+    nextWinnerInput: null,
+    applyCountInput: null,
+    animationStyleSelect: null,
+    showDecoyOddsCheckbox: null,
+    rigStatus: null,
+    participantSuggestions: null,
+    tvScrollContainer: null,
+    tvScrollList: null,
+    titleElement: null
 };
 
 // Initialize App
@@ -54,6 +86,23 @@ function init() {
     elements.noRepeatCheckbox = document.getElementById('noRepeatMode');
     elements.darkModeToggle = document.getElementById('darkModeToggle');
     elements.penaltyPanel = document.getElementById('penaltyPanel');
+    
+    // Admin elements
+    elements.adminPanel = document.getElementById('adminPanel');
+    elements.passcodeSection = document.getElementById('passcodeSection');
+    elements.passcodeInput = document.getElementById('passcodeInput');
+    elements.passcodeSubmit = document.getElementById('passcodeSubmit');
+    elements.passcodeError = document.getElementById('passcodeError');
+    elements.adminControls = document.getElementById('adminControls');
+    elements.nextWinnerInput = document.getElementById('nextWinner');
+    elements.applyCountInput = document.getElementById('applyCount');
+    elements.animationStyleSelect = document.getElementById('animationStyle');
+    elements.showDecoyOddsCheckbox = document.getElementById('showDecoyOdds');
+    elements.rigStatus = document.getElementById('rigStatus');
+    elements.participantSuggestions = document.getElementById('participantSuggestions');
+    elements.tvScrollContainer = document.getElementById('tvScrollContainer');
+    elements.tvScrollList = document.getElementById('tvScrollList');
+    elements.titleElement = document.querySelector('header h1');
 
     // Initialize canvas
     canvas = document.getElementById('rouletteCanvas');
@@ -67,6 +116,7 @@ function init() {
 
     // Load state from localStorage
     loadState();
+    loadRigConfig();
 
     // Set up event listeners
     setupEventListeners();
@@ -74,6 +124,7 @@ function init() {
     // Initial render
     renderAll();
     drawWheel();
+    updateRigStatus();
 }
 
 // Resize confetti canvas
@@ -100,6 +151,13 @@ function setupEventListeners() {
 
     // Spin button
     elements.spinBtn.addEventListener('click', spin);
+    
+    // Spin button long-press to clear rig
+    elements.spinBtn.addEventListener('mousedown', startSpinLongPress);
+    elements.spinBtn.addEventListener('touchstart', startSpinLongPress);
+    elements.spinBtn.addEventListener('mouseup', cancelSpinLongPress);
+    elements.spinBtn.addEventListener('mouseleave', cancelSpinLongPress);
+    elements.spinBtn.addEventListener('touchend', cancelSpinLongPress);
 
     // Mode toggle
     elements.singleModeBtn.addEventListener('click', () => setMode('single'));
@@ -117,6 +175,31 @@ function setupEventListeners() {
     // History controls
     document.getElementById('undoBtn').addEventListener('click', undoLast);
     document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
+    
+    // Konami code detection
+    document.addEventListener('keydown', handleKonamiCode);
+    
+    // Title long-press detection
+    elements.titleElement.addEventListener('mousedown', startTitleLongPress);
+    elements.titleElement.addEventListener('touchstart', startTitleLongPress);
+    elements.titleElement.addEventListener('mouseup', cancelTitleLongPress);
+    elements.titleElement.addEventListener('mouseleave', cancelTitleLongPress);
+    elements.titleElement.addEventListener('touchend', cancelTitleLongPress);
+    
+    // Admin panel controls
+    elements.passcodeSubmit.addEventListener('click', verifyPasscode);
+    elements.passcodeInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') verifyPasscode();
+    });
+    document.getElementById('setRig').addEventListener('click', setRigConfig);
+    document.getElementById('clearRig').addEventListener('click', clearRigConfig);
+    document.getElementById('closeAdmin').addEventListener('click', closeAdminPanel);
+    
+    // Admin overlay click to close
+    elements.adminPanel.querySelector('.admin-overlay').addEventListener('click', closeAdminPanel);
+    
+    // Update participant suggestions when typing
+    elements.nextWinnerInput.addEventListener('input', updateParticipantSuggestions);
 }
 
 // Add Item
@@ -242,6 +325,277 @@ function renderAll() {
     elements.penaltyPanel.style.display = state.currentMode === 'pairing' ? 'block' : 'none';
 }
 
+// ========== ADMIN PANEL FUNCTIONS ==========
+
+// Konami code handler
+function handleKonamiCode(e) {
+    const key = e.key;
+    konamiSequence.push(key);
+    
+    // Keep only the last 10 keys
+    if (konamiSequence.length > 10) {
+        konamiSequence.shift();
+    }
+    
+    // Check if matches Konami code
+    if (konamiSequence.length === 10) {
+        const matches = konamiSequence.every((k, i) => k === KONAMI_CODE[i]);
+        if (matches) {
+            openAdminPanel();
+            konamiSequence = [];
+        }
+    }
+}
+
+// Title long-press handlers
+function startTitleLongPress(e) {
+    e.preventDefault();
+    longPressTimer = setTimeout(() => {
+        openAdminPanel();
+        elements.titleElement.classList.remove('long-press-active');
+    }, 2000);
+    elements.titleElement.classList.add('long-press-active');
+}
+
+function cancelTitleLongPress() {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+    elements.titleElement.classList.remove('long-press-active');
+}
+
+// Spin button long-press handlers
+function startSpinLongPress(e) {
+    if (state.isSpinning) return;
+    
+    spinLongPressTimer = setTimeout(() => {
+        clearRigConfig();
+        elements.spinBtn.classList.remove('long-press-active');
+        // Visual feedback
+        const originalText = elements.spinBtn.textContent;
+        elements.spinBtn.textContent = 'リグをクリアしました!';
+        setTimeout(() => {
+            elements.spinBtn.textContent = originalText;
+        }, 1500);
+    }, 1500);
+    elements.spinBtn.classList.add('long-press-active');
+}
+
+function cancelSpinLongPress() {
+    if (spinLongPressTimer) {
+        clearTimeout(spinLongPressTimer);
+        spinLongPressTimer = null;
+    }
+    elements.spinBtn.classList.remove('long-press-active');
+}
+
+// Open admin panel
+function openAdminPanel() {
+    elements.adminPanel.classList.add('show');
+    elements.adminPanel.setAttribute('aria-hidden', 'false');
+    
+    // Reset to passcode entry if not authenticated
+    if (!isAdminAuthenticated) {
+        elements.passcodeSection.style.display = 'block';
+        elements.adminControls.style.display = 'none';
+        elements.passcodeInput.value = '';
+        elements.passcodeError.textContent = '';
+        elements.passcodeInput.focus();
+    } else {
+        elements.passcodeSection.style.display = 'none';
+        elements.adminControls.style.display = 'block';
+        updateAdminFields();
+    }
+}
+
+// Close admin panel
+function closeAdminPanel() {
+    elements.adminPanel.classList.remove('show');
+    elements.adminPanel.setAttribute('aria-hidden', 'true');
+}
+
+// Verify passcode
+function verifyPasscode() {
+    const enteredCode = elements.passcodeInput.value;
+    
+    if (enteredCode === ADMIN_PASSCODE) {
+        isAdminAuthenticated = true;
+        elements.passcodeSection.style.display = 'none';
+        elements.adminControls.style.display = 'block';
+        elements.passcodeError.textContent = '';
+        updateAdminFields();
+    } else {
+        elements.passcodeError.textContent = 'パスコードが正しくありません';
+        elements.passcodeInput.value = '';
+        elements.passcodeInput.focus();
+    }
+}
+
+// Update admin fields with current rig config
+function updateAdminFields() {
+    elements.nextWinnerInput.value = rigState.nextWinner;
+    elements.applyCountInput.value = rigState.applyCount || 1;
+    elements.animationStyleSelect.value = rigState.animationStyle;
+    elements.showDecoyOddsCheckbox.checked = rigState.showDecoyOdds;
+    updateParticipantSuggestions();
+    updateRigStatus();
+}
+
+// Update participant suggestions
+function updateParticipantSuggestions() {
+    elements.participantSuggestions.innerHTML = '';
+    state.participants.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p;
+        elements.participantSuggestions.appendChild(option);
+    });
+}
+
+// Set rig configuration
+function setRigConfig() {
+    const nextWinner = elements.nextWinnerInput.value.trim();
+    const applyCount = parseInt(elements.applyCountInput.value) || 1;
+    const animationStyle = elements.animationStyleSelect.value;
+    const showDecoyOdds = elements.showDecoyOddsCheckbox.checked;
+    
+    if (!nextWinner) {
+        alert('次の勝者を指定してください');
+        return;
+    }
+    
+    rigState.nextWinner = nextWinner;
+    rigState.applyCount = applyCount;
+    rigState.animationStyle = animationStyle;
+    rigState.showDecoyOdds = showDecoyOdds;
+    
+    saveRigConfig();
+    updateRigStatus();
+    
+    alert(`リグを設定しました: ${nextWinner} (${applyCount}回)`);
+}
+
+// Clear rig configuration
+function clearRigConfig() {
+    rigState.nextWinner = '';
+    rigState.applyCount = 0;
+    rigState.animationStyle = 'wheel';
+    rigState.showDecoyOdds = false;
+    
+    saveRigConfig();
+    updateRigStatus();
+    
+    if (isAdminAuthenticated && elements.adminPanel.classList.contains('show')) {
+        updateAdminFields();
+    }
+}
+
+// Update rig status display
+function updateRigStatus() {
+    if (!elements.rigStatus) return;
+    
+    if (rigState.applyCount > 0 && rigState.nextWinner) {
+        elements.rigStatus.innerHTML = `
+            <strong>リグ設定中:</strong><br>
+            次の勝者: ${rigState.nextWinner}<br>
+            残り回数: ${rigState.applyCount}<br>
+            アニメーション: ${rigState.animationStyle === 'wheel' ? 'ホイール' : 'TVスクロール'}
+        `;
+        elements.rigStatus.style.borderColor = '#10b981';
+    } else {
+        elements.rigStatus.innerHTML = '<strong>リグなし</strong> (通常モード)';
+        elements.rigStatus.style.borderColor = 'var(--border-color)';
+    }
+}
+
+// Save rig config to localStorage
+function saveRigConfig() {
+    localStorage.setItem('__rig_config_v1', JSON.stringify(rigState));
+}
+
+// Load rig config from localStorage
+function loadRigConfig() {
+    const saved = localStorage.getItem('__rig_config_v1');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            rigState.nextWinner = parsed.nextWinner || '';
+            rigState.applyCount = parsed.applyCount || 0;
+            rigState.animationStyle = parsed.animationStyle || 'wheel';
+            rigState.showDecoyOdds = parsed.showDecoyOdds || false;
+        } catch (e) {
+            console.error('Failed to load rig config:', e);
+        }
+    }
+}
+
+// Fuzzy match participant name
+function findParticipantMatch(targetName) {
+    if (!targetName) return null;
+    
+    const target = targetName.toLowerCase();
+    
+    // Exact match
+    for (let p of state.participants) {
+        if (p.toLowerCase() === target) {
+            return p;
+        }
+    }
+    
+    // Contains match
+    for (let p of state.participants) {
+        if (p.toLowerCase().includes(target) || target.includes(p.toLowerCase())) {
+            return p;
+        }
+    }
+    
+    // Fuzzy match (Levenshtein distance)
+    let bestMatch = null;
+    let bestDistance = Infinity;
+    
+    for (let p of state.participants) {
+        const distance = levenshteinDistance(target, p.toLowerCase());
+        if (distance < bestDistance && distance <= 3) {
+            bestDistance = distance;
+            bestMatch = p;
+        }
+    }
+    
+    return bestMatch;
+}
+
+// Levenshtein distance for fuzzy matching
+function levenshteinDistance(a, b) {
+    const matrix = [];
+    
+    for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    
+    return matrix[b.length][a.length];
+}
+
+// ========== END ADMIN PANEL FUNCTIONS ==========
+
+
 // Draw Roulette Wheel
 function drawWheel() {
     const items = state.currentMode === 'pairing' 
@@ -351,13 +705,136 @@ function spin() {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    // Random spins
-    const spins = 5 + Math.random() * 5;
-    const randomAngle = Math.random() * 2 * Math.PI;
-    targetRotation = rotation + spins * 2 * Math.PI + randomAngle;
+    // Check if we should use TV scroll animation
+    if (rigState.applyCount > 0 && rigState.animationStyle === 'tvscroll') {
+        spinWithTVScroll();
+    } else {
+        spinWithWheel();
+    }
+}
+
+// Spin with wheel animation
+function spinWithWheel() {
+    // Determine if this spin is rigged
+    let targetWinner = null;
+    let targetIndex = -1;
+    
+    if (rigState.applyCount > 0 && rigState.nextWinner) {
+        targetWinner = findParticipantMatch(rigState.nextWinner);
+        if (targetWinner) {
+            targetIndex = state.participants.indexOf(targetWinner);
+        }
+    }
+    
+    const items = state.participants;
+    
+    if (targetIndex >= 0) {
+        // Rigged spin - calculate rotation to land on target
+        const sliceAngle = (2 * Math.PI) / items.length;
+        const targetAngle = targetIndex * sliceAngle;
+        
+        // Calculate how much to rotate to land on target (accounting for pointer at top)
+        const spins = 5 + Math.random() * 3;
+        const adjustedTargetAngle = (2 * Math.PI - targetAngle) - Math.PI / 2;
+        targetRotation = rotation + spins * 2 * Math.PI + adjustedTargetAngle;
+    } else {
+        // Fair spin
+        const spins = 5 + Math.random() * 5;
+        const randomAngle = Math.random() * 2 * Math.PI;
+        targetRotation = rotation + spins * 2 * Math.PI + randomAngle;
+    }
 
     animateWheel();
 }
+
+// Spin with TV scroll animation
+function spinWithTVScroll() {
+    // Determine target winner
+    let targetWinner = null;
+    
+    if (rigState.applyCount > 0 && rigState.nextWinner) {
+        targetWinner = findParticipantMatch(rigState.nextWinner);
+    }
+    
+    if (!targetWinner) {
+        // Fallback to random
+        targetWinner = state.participants[Math.floor(Math.random() * state.participants.length)];
+    }
+    
+    // Build scroll list - repeat participants 15 times
+    const scrollItems = [];
+    for (let i = 0; i < 15; i++) {
+        scrollItems.push(...state.participants);
+    }
+    
+    // Add target winner in the middle
+    const middleIndex = Math.floor(scrollItems.length / 2);
+    scrollItems[middleIndex] = targetWinner;
+    
+    // Create DOM elements
+    elements.tvScrollList.innerHTML = '';
+    scrollItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'tv-scroll-item';
+        div.textContent = item;
+        elements.tvScrollList.appendChild(div);
+    });
+    
+    // Show TV scroll container
+    elements.tvScrollContainer.style.display = 'flex';
+    
+    // Animate scroll
+    const itemHeight = 100; // Matches CSS padding
+    const startY = 0;
+    const targetY = -(middleIndex * itemHeight) + 100; // Center in window
+    let currentY = startY;
+    let velocity = 0;
+    const acceleration = 2;
+    const maxVelocity = 80;
+    let isDecelerating = false;
+    
+    function animateTVScroll() {
+        if (!isDecelerating) {
+            // Accelerate
+            velocity = Math.min(velocity + acceleration, maxVelocity);
+            currentY -= velocity;
+            
+            // Start decelerating when close to target
+            if (currentY <= targetY + 1000) {
+                isDecelerating = true;
+            }
+        } else {
+            // Decelerate
+            velocity *= 0.92;
+            currentY -= velocity;
+            
+            // Snap to target when close enough
+            if (Math.abs(currentY - targetY) < 5 && velocity < 1) {
+                currentY = targetY;
+                elements.tvScrollList.style.transform = `translateY(${currentY}px)`;
+                setTimeout(() => {
+                    onTVScrollComplete(targetWinner);
+                }, 500);
+                return;
+            }
+        }
+        
+        elements.tvScrollList.style.transform = `translateY(${currentY}px)`;
+        requestAnimationFrame(animateTVScroll);
+    }
+    
+    animateTVScroll();
+}
+
+// On TV scroll complete
+function onTVScrollComplete(winner) {
+    // Hide TV scroll
+    elements.tvScrollContainer.style.display = 'none';
+    
+    // Process the winner
+    processSpinResult(winner);
+}
+
 
 // Animate wheel rotation
 function animateWheel() {
@@ -379,9 +856,6 @@ function animateWheel() {
 
 // On spin complete
 function onSpinComplete() {
-    state.isSpinning = false;
-    elements.spinBtn.disabled = false;
-
     // Calculate winner
     const items = state.currentMode === 'pairing' 
         ? state.participants 
@@ -393,10 +867,23 @@ function onSpinComplete() {
     // The pointer is at the top, so we need to find which slice is at the top
     // Adjust for rotation direction
     let winnerIndex = Math.floor(((2 * Math.PI - normalizedRotation) + Math.PI / 2) / sliceAngle) % items.length;
+    const participant = items[winnerIndex];
+    
+    // Process the result
+    processSpinResult(participant, winnerIndex);
+}
+
+// Process spin result (shared by wheel and TV scroll)
+function processSpinResult(participant, winnerIndex = -1) {
+    state.isSpinning = false;
+    elements.spinBtn.disabled = false;
+    
+    // If winnerIndex not provided, find it
+    if (winnerIndex === -1) {
+        winnerIndex = state.participants.indexOf(participant);
+    }
     
     let resultText;
-    let participant = items[winnerIndex];
-    
     let penalty = null;
     let penaltyIndex = -1;
     
@@ -434,6 +921,21 @@ function onSpinComplete() {
         penalty: penalty,
         mode: state.currentMode
     });
+
+    // Decrement rig count if active
+    if (rigState.applyCount > 0) {
+        rigState.applyCount--;
+        saveRigConfig();
+        updateRigStatus();
+        
+        // Clear rig if count reaches 0
+        if (rigState.applyCount === 0) {
+            rigState.nextWinner = '';
+            rigState.animationStyle = 'wheel';
+            rigState.showDecoyOdds = false;
+            saveRigConfig();
+        }
+    }
 
     saveState();
     renderLists();
