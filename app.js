@@ -731,12 +731,25 @@ function spinWithWheel() {
     if (targetIndex >= 0) {
         // Rigged spin - calculate rotation to land on target
         const sliceAngle = (2 * Math.PI) / items.length;
-        const targetAngle = targetIndex * sliceAngle;
         
-        // Calculate how much to rotate to land on target (accounting for pointer at top)
+        // The winner calculation is: Math.floor(((2 * Math.PI - normalizedRotation) + Math.PI / 2) / sliceAngle) % items.length
+        // We need to find normalizedRotation such that this formula gives us targetIndex
+        // Solving: targetIndex = Math.floor(((2 * Math.PI - normalizedRotation) + Math.PI / 2) / sliceAngle) % items.length
+        // We want normalizedRotation in the range that gives targetIndex
+        
+        const centerOfSlice = targetIndex * sliceAngle + sliceAngle / 2;
+        const desiredNormalizedRotation = (2 * Math.PI + Math.PI / 2 - centerOfSlice) % (2 * Math.PI);
+        
+        // Add random offset within the slice
+        const randomOffset = (Math.random() - 0.5) * sliceAngle * 0.7;
+        const finalNormalizedRotation = (desiredNormalizedRotation + randomOffset + 2 * Math.PI) % (2 * Math.PI);
+        
+        // Calculate total rotation including spins
         const spins = 5 + Math.random() * 3;
-        const adjustedTargetAngle = (2 * Math.PI - targetAngle) - Math.PI / 2;
-        targetRotation = rotation + spins * 2 * Math.PI + adjustedTargetAngle;
+        const currentNormalized = rotation % (2 * Math.PI);
+        const delta = (finalNormalizedRotation - currentNormalized + 2 * Math.PI) % (2 * Math.PI);
+        
+        targetRotation = rotation + spins * 2 * Math.PI + delta;
     } else {
         // Fair spin
         const spins = 5 + Math.random() * 5;
