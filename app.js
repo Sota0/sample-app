@@ -18,12 +18,16 @@ const rigState = {
 };
 
 // Admin Panel State
-const ADMIN_PASSCODE = '1029';
+const ADMIN_PASSCODE = '1029'; // Can be changed for different events
+const FUZZY_MATCH_MAX_DISTANCE = 3; // Maximum Levenshtein distance for fuzzy name matching
 let isAdminAuthenticated = false;
 let konamiSequence = [];
 const KONAMI_CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 let longPressTimer = null;
 let spinLongPressTimer = null;
+
+// TV Scroll Animation Constants
+const TV_SCROLL_DECELERATION_DISTANCE = 1000; // Distance before target to start decelerating
 
 // Default data in Japanese
 const defaultParticipants = ['田中', '佐藤', '鈴木', '高橋', '伊藤', '渡辺', '山本', '中村'];
@@ -555,7 +559,7 @@ function findParticipantMatch(targetName) {
     
     for (let p of state.participants) {
         const distance = levenshteinDistance(target, p.toLowerCase());
-        if (distance < bestDistance && distance <= 3) {
+        if (distance < bestDistance && distance <= FUZZY_MATCH_MAX_DISTANCE) {
             bestDistance = distance;
             bestMatch = p;
         }
@@ -817,7 +821,7 @@ function spinWithTVScroll() {
             currentY -= velocity;
             
             // Start decelerating when close to target
-            if (currentY <= targetY + 1000) {
+            if (currentY <= targetY + TV_SCROLL_DECELERATION_DISTANCE) {
                 isDecelerating = true;
             }
         } else {
