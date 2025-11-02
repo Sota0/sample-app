@@ -754,8 +754,6 @@ function spinWithWheel() {
         if (delta < 0) delta += 2 * Math.PI;
         
         targetRotation = rotation + spins * 2 * Math.PI + delta;
-        
-        console.log(`Rigging for ${targetWinner} (index ${targetIndex}): targetRotation=${targetRotation}, finalNormalized=${finalNormalizedRotation}`);
     } else {
         // Fair spin
         const spins = 5 + Math.random() * 5;
@@ -889,7 +887,6 @@ function onSpinComplete() {
         if (targetWinner) {
             participant = targetWinner;
             winnerIndex = items.indexOf(targetWinner);
-            console.log(`Rigged result: ${participant} (index ${winnerIndex})`);
         } else {
             // Fallback to normal if match not found
             const normalizedRotation = rotation % (2 * Math.PI);
@@ -904,8 +901,6 @@ function onSpinComplete() {
         winnerIndex = Math.floor(((2 * Math.PI - normalizedRotation) + Math.PI / 2) / sliceAngle) % items.length;
         participant = items[winnerIndex];
     }
-    
-    console.log(`Winner calculation: rotation=${rotation}, winnerIndex=${winnerIndex}, participant=${participant}`);
     
     // Process the result
     processSpinResult(participant, winnerIndex);
